@@ -20,6 +20,7 @@ let icosphere: Icosphere;
 let square: Square;
 let cube: Cube;
 let prevTesselations: number = 5;
+let time: number = 0;
 
 function loadScene() {
   icosphere = new Icosphere(vec3.fromValues(0, 0, 0), 1, controls.tesselations);
@@ -44,7 +45,7 @@ function main() {
   gui.add(controls, 'tesselations', 0, 8).step(1);
   gui.add(controls, 'Load Scene');
   var color = {
-    color: [ 0, 128, 255 ], // RGB array
+    color: [255, 128, 128], // RGB array
   };
   gui.addColor(color, 'color');
 
@@ -64,7 +65,7 @@ function main() {
   const camera = new Camera(vec3.fromValues(0, 0, 5), vec3.fromValues(0, 0, 0));
 
   const renderer = new OpenGLRenderer(canvas);
-  renderer.setClearColor(0.2, 0.2, 0.2, 1);
+  renderer.setClearColor(177.0 / 255.0, 204.0 / 255.0, 193.0 / 255.0, 1);
   gl.enable(gl.DEPTH_TEST);
 
   const lambert = new ShaderProgram([
@@ -78,6 +79,7 @@ function main() {
 
   // This function will be called every frame
   function tick() {
+    time++;
     camera.update();
     stats.begin();
     gl.viewport(0, 0, window.innerWidth, window.innerHeight);
@@ -92,7 +94,7 @@ function main() {
       //icosphere,
       //square,
       cube
-    ], color.color);
+    ], color.color, time);
     stats.end();
 
     // Tell the browser to call `tick` again whenever it renders a new frame
