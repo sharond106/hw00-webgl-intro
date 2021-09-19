@@ -12,7 +12,7 @@ import ShaderProgram, {Shader} from './rendering/gl/ShaderProgram';
 // Define an object with application parameters and button callbacks
 // This will be referred to by dat.GUI's functions that add GUI elements.
 const controls = {
-  tesselations: 5,
+  tesselations: 6,
   'Load Scene': loadScene, // A function pointer, essentially
 };
 
@@ -62,7 +62,7 @@ function main() {
   // Initial call to load scene
   loadScene();
 
-  const camera = new Camera(vec3.fromValues(0, 0, 5), vec3.fromValues(0, 0, 0));
+  const camera = new Camera(vec3.fromValues(0, 0, 3), vec3.fromValues(0, 0, 0));
 
   const renderer = new OpenGLRenderer(canvas);
   renderer.setClearColor(177.0 / 255.0, 204.0 / 255.0, 193.0 / 255.0, 1);
@@ -75,6 +75,14 @@ function main() {
   const noise = new ShaderProgram([
     new Shader(gl.VERTEX_SHADER, require('./shaders/noise-vert.glsl')),
     new Shader(gl.FRAGMENT_SHADER, require('./shaders/noise-frag.glsl')),
+  ]);
+  const planet = new ShaderProgram([
+    new Shader(gl.VERTEX_SHADER, require('./shaders/planet-vert.glsl')),
+    new Shader(gl.FRAGMENT_SHADER, require('./shaders/planet-frag.glsl')),
+  ]);
+  const test = new ShaderProgram([
+    new Shader(gl.VERTEX_SHADER, require('./shaders/test-vert.glsl')),
+    new Shader(gl.FRAGMENT_SHADER, require('./shaders/test-frag.glsl')),
   ]);
 
   // This function will be called every frame
@@ -90,10 +98,10 @@ function main() {
       icosphere = new Icosphere(vec3.fromValues(0, 0, 0), 1, prevTesselations);
       icosphere.create();
     }
-    renderer.render(camera, noise, [
-      //icosphere,
+    renderer.render(camera, planet, [
+      icosphere,
       //square,
-      cube
+      //cube
     ], color.color, time);
     stats.end();
 
