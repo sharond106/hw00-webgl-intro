@@ -46,7 +46,7 @@ float perlin(vec3 p) {
 }
 
 float worley(vec3 p) {
-  p *= 1.5;
+  p *= 1.;
   vec3 pInt = floor(p);
   vec3 pFract = fract(p);
   float minDist = 1.0;
@@ -69,7 +69,61 @@ float worley(vec3 p) {
       }
     }
   }
-  return -1. * minDist + 1. * secondDist;
+  return 1.0 - minDist;
+  //return -1. * minDist + 1. * secondDist;
+}
+
+float random1( vec3 p ) {
+  return fract(sin((dot(p, vec3(127.1,
+  311.7,
+  191.999)))) *
+  28.5453);
+}
+
+float mySmootherStep(float a, float b, float t) {
+    t = t*t*t*(t*(t*6.0 - 15.0) + 10.0);
+    return mix(a, b, t);
+}
+
+float interpNoise3D(float x, float y, float z) {
+  x *= 2.;
+  y *= 2.;
+  z *= 2.;
+  float intX = floor(x);
+  float fractX = fract(x);
+  float intY = floor(y);
+  float fractY = fract(y);
+  float intZ = floor(z);
+  float fractZ = fract(z);
+  float v1 = random1(vec3(intX, intY, intZ));
+  float v2 = random1(vec3(intX + 1., intY, intZ));
+  float v3 = random1(vec3(intX, intY + 1., intZ));
+  float v4 = random1(vec3(intX + 1., intY + 1., intZ));
+
+  float v5 = random1(vec3(intX, intY, intZ + 1.));
+  float v6 = random1(vec3(intX + 1., intY, intZ + 1.));
+  float v7 = random1(vec3(intX, intY + 1., intZ + 1.));
+  float v8 = random1(vec3(intX + 1., intY + 1., intZ + 1.));
+
+  float i1 = mySmootherStep(v1, v2, fractX);
+  float i2 = mySmootherStep(v3, v4, fractX);
+  float result1 = mySmootherStep(i1, i2, fractY);
+  float i3 = mySmootherStep(v5, v6, fractX);
+  float i4 = mySmootherStep(v7, v8, fractX);
+  float result2 = mySmootherStep(i3, i4, fractY);
+  return mySmootherStep(result1, result2, fractZ);
+}
+
+float fbm(float x, float y, float z) {
+  float total = 0.;
+  float persistence = 0.5f;
+  float octaves = 4.;
+  for(float i = 1.; i <= octaves; i++) {
+    float freq = pow(2.f, i);
+    float amp = pow(persistence, i);
+    total += interpNoise3D(x * freq, y * freq, z * freq) * amp;
+  }
+  return total;
 }
 
 void main()
@@ -94,5 +148,10 @@ void main()
   vec3 perlinColor = a + b * cos(6.28 * worley(vec3(fs_Pos)) * perlinNoise * 4. * c + d);
 
   // Compute final shaded color
-  out_Col = vec4(vec3(perlinNoise * perlinNoise * perlinNoise), diffuseColor.a);
+  float f = fbm(fs_Pos.x, fs_Pos.y, fs_Pos.z);
+  vec4 pos = fs_Pos;
+  pos = fs_Pos + f;  // THIS IS COOL!!!!!!!!!!!!
+  out_Col = vec4(vec3(fbm(pos.x, pos.y, pos.z)), diffuseColor.a); // swirly fbm
+  out_Col = vec4(vec3(worley(vec3(f))), diffuseColor.a); //
+  //out_Col = vec4(vec3(perlin(vec3(pos))) * lightIntensity, diffuseColor.a);
 }

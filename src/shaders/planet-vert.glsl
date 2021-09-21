@@ -30,8 +30,15 @@ out vec4 fs_Nor;            // The array of normals that has been transformed by
 out vec4 fs_LightVec;       // The direction in which our virtual light lies, relative to each vertex. This is implicitly passed to the fragment shader.
 out vec4 fs_Col;            // The color of each vertex. This is implicitly passed to the fragment shader.
 
-const vec4 lightPos = vec4(5, 5, 3, 1); //The position of our virtual light, which is used to compute the shading of
+const vec4 lightPos = vec4(2, 0, 3, 1); //The position of our virtual light, which is used to compute the shading of
                                         //the geometry in the fragment shader.
+
+float random1( vec3 p ) {
+  return fract(sin((dot(p, vec3(127.1,
+  311.7,
+  191.999)))) *
+  43758.5453);
+}
 
 // Returns random vec3 in range [0, 1]
 vec3 random3(vec3 p) {
@@ -82,6 +89,29 @@ float perlin(vec3 p) {
   return surfletSum;
 }
 
+float perlinAdded(vec4 p) {
+  float noise = perlin(vec3(p)) + .5 * perlin(2.f * vec3(p)) + 0.25 * perlin(4.f * vec3(p));
+  //noise = noise / (1.f + .5 + .25); // this and next line for valleys
+  //noise = pow(noise, .2);
+
+  float terrace = round(noise * 12.f) / 12.f;
+  noise = mix(noise, terrace, random1(vec3(terrace)));
+  return noise;
+}
+
+vec4 perlinNormal(vec4 p) {
+  float xNeg = perlinAdded((p + vec4(-.00001, 0, 0, 0)));
+  float xPos = perlinAdded((p + vec4(.00001, 0, 0, 0)));
+  float xDiff = xPos - xNeg;
+  float yNeg = perlinAdded((p + vec4(0, -.00001, 0, 0)));
+  float yPos = perlinAdded((p + vec4(0, .00001, 0, 0)));
+  float yDiff = yPos - yNeg;
+  float zNeg = perlinAdded((p + vec4(0, 0, -.00001, 0)));
+  float zPos = perlinAdded((p + vec4(0, 0, .00001, 0)));
+  float zDiff = zPos - zNeg;
+  return vec4(vec3(xDiff, yDiff, zDiff), 0);
+}
+
 float worley(vec3 p) {
   p *= 3.5;
   vec3 pInt = floor(p);
@@ -105,19 +135,40 @@ float worley(vec3 p) {
       }
     }
   }
-  return -1. * minDist + 1. * secondDist;
+  //return 1.0 - minDist;
+  return (-1. * minDist + 1. * secondDist);
 }
 
-vec4 offsetPos(vec4 pos) {
-  vec3 offset = vec3(worley(vec3(pos))) / vec3(2.0); // Can divide by different factors or not at all for plateus!!!!!!!!!!!!!!
+vec4 worleyAdded(vec4 pos) {
+  vec3 offset = vec3(pow(worley(vec3(pos)), 2.f)) / vec3(3.0); // Can divide by different factors or not at all for plateus!!!!!!!!!!!!!!
     
-  offset.x = clamp(offset.x, 0.1, .4); // Can change these values!!!!!!!!!!!!!!!!!! 
-  offset.y = clamp(offset.y, 0.1, .4);
-  offset.z = clamp(offset.z, 0.1, .4);
-  vec4 noise = pos + vs_Nor * vec4(offset + random3(offset) / vec3(50.0), 0); 
-                      // Can try subtracting offset!!!!!!!!!!!!!!!!!!!!!!!
-                      // make sure the clamp min is 0 so sphere doesn't shrink
-  return noise;
+  //offset.x = clamp(offset.x, 0.2, .4); // Can change these values!!!!!!!!!!!!!!!!!! 
+  //offset.y = clamp(offset.y, 0.2, .4);
+  //offset.z = clamp(offset.z, 0.2, .4);
+  //offset = offset + random3(offset) / vec3(50.0);
+  return vec4(offset, 0.);
+}
+
+vec4 worleyNormal(vec4 p) {
+  float xNeg = worleyAdded((p + vec4(-.00001, 0, 0, 0))).x;
+  float xPos = worleyAdded((p + vec4(.00001, 0, 0, 0))).x;
+  float xDiff = (xPos - xNeg);
+  if (p.x == 0.2) {
+    xDiff = vs_Nor.x;
+  }
+  float yNeg = worleyAdded((p + vec4(0, -.00001, 0, 0))).y;
+  float yPos = worleyAdded((p + vec4(0, .00001, 0, 0))).y;
+  float yDiff = (yPos - yNeg);
+ if (p.y == 0.2) {
+    yDiff = vs_Nor.y;
+  }
+  float zNeg = worleyAdded((p + vec4(0, 0, -.00001, 0))).z;
+  float zPos = worleyAdded((p + vec4(0, 0, .00001, 0))).z;
+  float zDiff = (zPos - zNeg);
+  if (p.z == 0.2) {
+    zDiff = vs_Nor.z;
+  }
+  return (vec4(vec3(xDiff, yDiff, zDiff), 0));
 }
 
 void main()
@@ -126,29 +177,17 @@ void main()
     mat3 invTranspose = mat3(u_ModelInvTr);
     fs_Nor = vec4(invTranspose * vec3(vs_Nor), 0);  
 
-    vec4 noise = offsetPos(vs_Pos);
-    float perlin = perlin(vec3(vs_Pos)) + .5 * perlin(2.f * vec3(vs_Pos)) + 0.25 * perlin(4.f * vec3(vs_Pos));
-    
-    //perlin = perlin / (1.f + .5 + .25); // this and next line for valleys
-    //perlin = pow(perlin, .2);
-    
-    vec4 perlinNoise = vs_Pos + vs_Nor * perlin;
+    vec4 worleyNoise = vs_Pos + vs_Nor * worleyAdded(vs_Pos);    
+    vec4 perlinNoise = vs_Pos + vs_Nor * perlinAdded(vs_Pos);
 
-    vec4 modelposition = u_Model * perlinNoise;   // Temporarily store the transformed vertex positions for use below
+    vec4 modelposition = u_Model * worleyNoise; 
+    //vec4 modelposition = u_Model * perlinNoise;   // Temporarily store the transformed vertex positions for use below
     fs_Pos = modelposition;
 
-    vec4 xNeg = offsetPos(vs_Pos + vec4(-.0000001, 0, 0, 0));
-    vec4 xPos = offsetPos(vs_Pos + vec4(.0000001, 0, 0, 0));
-    vec4 xDiff = xPos - xNeg;
-    vec4 yNeg = offsetPos(vs_Pos + vec4(0, -.0000001, 0, 0));
-    vec4 yPos = offsetPos(vs_Pos + vec4(0, .0000001, 0, 0));
-    vec4 yDiff = yPos - yNeg;
-    vec4 zNeg = offsetPos(vs_Pos + vec4(0, 0, -.0000001, 0));
-    vec4 zPos = offsetPos(vs_Pos + vec4(0, 0, .0000001, 0));
-    vec4 zDiff = zPos - zNeg;
-    //fs_Nor = normalize(vec4(vec3(xDiff.x, yDiff.y, zDiff.z), 0));
-
-    vec3 normal = normalize(vec3(xDiff.x, yDiff.y, zDiff.z));
+    //fs_Nor = normalize(worleyNormal(vs_Pos));
+    //fs_Nor = perlinNormal(vs_Pos);
+    //fs_Nor = vec4(invTranspose * vec3(fs_Nor), 0); 
+    vec3 normal = normalize(normalize(vec3(worleyNormal(vs_Pos))));
     vec3 tangent = normalize(cross(vec3(0.0, 1.0, 0.0), normal));
     vec3 bitangent = normalize(cross(normal, tangent));
     mat4 transform;
@@ -159,7 +198,6 @@ void main()
     //fs_Nor = vec4(normalize(vec3(transform * vec4(normal, 0.0))), 0.0); 
 
     fs_LightVec = lightPos - modelposition;  // Compute the direction in which the light source lies
-
     gl_Position = u_ViewProj * modelposition;// gl_Position is a built-in variable of OpenGL which is
                                              // used to render the final positions of the geometry's vertices
 }
