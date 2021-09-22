@@ -98,7 +98,7 @@ function main() {
       icosphere = new Icosphere(vec3.fromValues(0, 0, 0), 1, prevTesselations);
       icosphere.create();
     }
-    renderer.render(camera, test, [
+    renderer.render(camera, planet, [
       icosphere,
       //square,
       //cube
