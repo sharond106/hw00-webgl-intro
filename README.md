@@ -1,9 +1,9 @@
 # HW 0: Noisy Planet Part 1 (Intro to Javascript and WebGL)
+Link: [https://sharond106.github.io/hw00-webgl-intro/](https://sharond106.github.io/hw00-webgl-intro/)
 
-<p align="center">
-  <img width="360" height="360" src="https://user-images.githubusercontent.com/1758825/132532354-e3a45402-e484-499e-bfa7-2d73b9f2c946.png">
-</p>
-<p align="center">(source: Ken Perlin)</p>
+The fragment shader is implemented with 3D perlin and worley noise, both displaced with time. You can change one of the base colors using the color picker in the gui on the top right. The vertex shader displaces x and y coordinates with a sin function over time.
+
+![Alt Text](https://media.giphy.com/media/MXjh2U0hGcgwJuGp27/giphy.gif?cid=790b761104e45ac8167ff98bc109ed47be8e78d0f975ffac&rid=giphy.gif&ct=g)
 
 ## Objective
 - Check that the tools and build configuration we will be using for the class works.
