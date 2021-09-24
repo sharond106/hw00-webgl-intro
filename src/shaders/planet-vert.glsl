@@ -26,12 +26,14 @@ in vec4 vs_Nor;             // The array of vertex normals passed to the shader
 
 in vec4 vs_Col;             // The array of vertex colors passed to the shader.
 
+out float noise;
 out vec4 fs_Pos;
 out vec4 fs_Nor;            // The array of normals that has been transformed by u_ModelInvTr. This is implicitly passed to the fragment shader.
 out vec4 fs_LightVec;       // The direction in which our virtual light lies, relative to each vertex. This is implicitly passed to the fragment shader.
 out vec4 fs_Col;            // The color of each vertex. This is implicitly passed to the fragment shader.
+out float terrain_Type;
 
-const vec4 lightPos = vec4(4, 7, 7, 1); //The position of our virtual light, which is used to compute the shading of
+const vec4 lightPos = vec4(4, 7, 10, 1); //The position of our virtual light, which is used to compute the shading of
                                         //the geometry in the fragment shader.
 
 float random1( vec3 p ) {
@@ -47,18 +49,6 @@ vec3 random3(vec3 p) {
                         dot(p,vec3(269.5, 183.3, 765.54)),
                         dot(p, vec3(420.69, 631.2,109.21))))
                 *43758.5453);
-}
-
-vec3 bias(vec3 b, float t) {
-  return vec3(pow(t, log(b.x) / log(0.5)), pow(t, log(b.y) / log(0.5)), pow(t, log(b.z) / log(0.5)));
-}
-
-vec3 gain(vec3 g, float t) {
-  if (t < 0.5) {
-    return bias(vec3(1.0) - g, 2.0 * t) / 2.0;
-  } else {
-    return vec3(1.0) - bias(vec3(1.0) - g, 2.0 - 2.0 * t) / 2.0;
-  }
 }
 
 // Returns a surflet 
@@ -87,37 +77,95 @@ float perlin(vec3 p) {
       }
     }
   }
+  // float sum = surfletSum / 4.;
+  // return (sum + 1. )/2.;
   return surfletSum / 4.;
 }
 
 float perlinTerrace(vec4 p) {
+  p *= 1.5;
   float noise = perlin(vec3(p)) + .5 * perlin(2.f * vec3(p)) + 0.25 * perlin(4.f * vec3(p));
   float rounded = (round(noise * 30.f) / 30.f);
-  float terrace = (noise + sin(190.*noise + 4.)*.008);
+  float terrace = (noise + sin(200.*noise + 3.)*.006) *.9;
+  
+  // float rounded = perlin(p.xyz);
   //terrace = rounded;
   //terrace *= random1(vec3(terrace));
   //noise = mix(noise, terrace, random1(vec3(terrace)));
-  return terrace;
+  return terrace + .01;
 }
 
 float perlinMountains(vec4 p) {
-  float noise = perlin(vec3(p)) * 4. + .5 * perlin(2.f * vec3(p)) * 4. + 0.25 * perlin(4.f * vec3(p)) * 4.;
+  p *= 2.;
+  float noise = perlin(vec3(p)) + .5 * perlin(2.f * vec3(p)) + 0.25 * perlin(4.f * vec3(p));
   //noise = noise / (1.f + .5 + .25); // this and next line for valleys
   //noise = pow(noise, .2);
-  return noise;
+  noise *= 1.5;
+  return noise + .05;
 }
 
-vec4 perlinNormal(vec4 p) {
-  float xNeg = perlinTerrace((p + vec4(-.00001, 0, 0, 0)));
-  float xPos = perlinTerrace((p + vec4(.00001, 0, 0, 0)));
-  float xDiff = xPos - xNeg;
-  float yNeg = perlinTerrace((p + vec4(0, -.00001, 0, 0)));
-  float yPos = perlinTerrace((p + vec4(0, .00001, 0, 0)));
-  float yDiff = yPos - yNeg;
-  float zNeg = perlinTerrace((p + vec4(0, 0, -.00001, 0)));
-  float zPos = perlinTerrace((p + vec4(0, 0, .00001, 0)));
-  float zDiff = zPos - zNeg;
-  return vec4(vec3(xDiff, yDiff, zDiff), 0);
+vec4 cartesian(float r, float theta, float phi) {
+  return vec4(r * sin(phi) * cos(theta), 
+              r * sin(phi) * sin(theta),
+              r * cos(phi), 1.);
+}
+
+// output is vec3(radius, theta, phi)
+vec3 polar(vec4 p) {
+  float r = sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+  float theta = atan(p.y / p.x);
+  // float phi = atan(sqrt(p.x * p.x + p.y * p.y) / p.z);
+  float phi = acos(p.z / sqrt(p.x * p.x + p.y * p.y + p.z * p.z));
+  return vec3(r, theta, phi);
+}
+
+vec4 transformToWorld(vec4 nor) {
+  vec3 normal = normalize(vec3(vs_Nor));
+  vec3 tangent = normalize(cross(vec3(0.0, 1.0, 0.0), normal));
+  vec3 bitangent = normalize(cross(normal, tangent));
+  mat4 transform;
+  transform[0] = vec4(tangent, 0.0);
+  transform[1] = vec4(bitangent, 0.0);
+  transform[2] = vec4(normal, 0.0);
+  transform[3] = vec4(0.0, 0.0, 0.0, 1.0);
+  return vec4(normalize(vec3(transform * nor)), 0.0); 
+  // return nor;
+} 
+
+vec4 perlinTerraceNormal(vec4 p) {
+  vec3 polars = polar(p);
+  float offset = .0001;
+  vec4 xNeg = cartesian(polars.x, polars.y - offset, polars.z);
+  vec4 xPos = cartesian(polars.x, polars.y + offset, polars.z);
+  vec4 yNeg = cartesian(polars.x, polars.y, polars.z - offset);
+  vec4 yPos = cartesian(polars.x, polars.y, polars.z + offset);
+  float xNegNoise = perlinTerrace(xNeg);
+  float xPosNoise = perlinTerrace(xPos);
+  float yNegNoise = perlinTerrace(yNeg);
+  float yPosNoise = perlinTerrace(yPos);
+
+  float xDiff = (xPosNoise - xNegNoise) * 1000.;
+  float yDiff = (yPosNoise - yNegNoise) * 1000.;
+  p.z = sqrt(1. - xDiff * xDiff - yDiff * yDiff);
+  return vec4(vec3(xDiff, yDiff, p.z), 0);
+}
+
+vec4 perlinMoutainNormal(vec4 p) {
+  vec3 polars = polar(p);
+  float offset = .01;
+  vec4 xNeg = cartesian(polars.x, polars.y - offset, polars.z);
+  vec4 xPos = cartesian(polars.x, polars.y + offset, polars.z);
+  vec4 yNeg = cartesian(polars.x, polars.y, polars.z - offset);
+  vec4 yPos = cartesian(polars.x, polars.y, polars.z + offset);
+  float xNegNoise = perlinMountains(xNeg);
+  float xPosNoise = perlinMountains(xPos);
+  float yNegNoise = perlinMountains(yNeg);
+  float yPosNoise = perlinMountains(yPos);
+
+  float xDiff = (xPosNoise - xNegNoise) * 10.;
+  float yDiff = (yPosNoise - yNegNoise) * 10.;
+  p.z = sqrt(1. - xDiff * xDiff - yDiff * yDiff);
+  return vec4(vec3(xDiff, yDiff, p.z), 0);
 }
 
 
@@ -233,7 +281,6 @@ float worley2(vec3 p) {
   vec3 pInt = floor(p);
   vec3 pFract = fract(p);
   float minDist = 1.0;
-  float secondDist = 1.0;
   for (int x = -1; x <= 1; x++) {
     for (int y = -1; y <= 1; y++) {
       for (int z = -1; z <= 1; z++) {
@@ -241,45 +288,82 @@ float worley2(vec3 p) {
         vec3 voronoi = random3(pInt + neighbor);
         vec3 diff = neighbor + voronoi - pFract;
         float dist = length(diff);
-        if (dist < minDist) {
-          secondDist = minDist;
-          minDist = dist;
-        } else if (dist < secondDist) {
-            secondDist = dist;
-        } 
+        minDist = min(minDist, dist);
       }
     }
   }
   return 1.0 - minDist;
 }
 
-vec4 worleyAdded(vec4 pos) {
-  vec3 offset = vec3((worley(vec3(pos * 6.)))) / .5; // Can divide by different factors or not at all for plateus!!!!!!!!!!!!!!
-  offset.x = clamp(offset.x, .1, .15); 
-  offset.y = clamp(offset.y, .1, .15);
-  offset.z = clamp(offset.z, .1, .15);
+float worleyAdded(vec4 pos) {
+  float offset = ((worley(vec3(pos * 6.)))) / .5; // Can divide by different factors or not at all for plateus!!!!!!!!!!!!!!
+  offset = clamp(offset, .1, .15); 
 
   // if (offset.x > 0. && offset.y > 0. && offset.z > 0.) {
   //   offset = vec3(mix(vec3(fbm2(pos)), offset, .85));
   // }
   offset/=5.;
-  return vec4(offset, 0.);
+  return offset;
 }
 
 vec4 worleyNormal(vec4 p) {
-  float xNeg = worleyAdded((p + vec4(-.00001, 0, 0, 0))).x;
-  float xPos = worleyAdded((p + vec4(.00001, 0, 0, 0))).x;
+  float xNeg = worleyAdded((p + vec4(-.00001, 0, 0, 0)));
+  float xPos = worleyAdded((p + vec4(.00001, 0, 0, 0)));
   float xDiff = (xPos - xNeg);
   
-  float yNeg = worleyAdded((p + vec4(0, -.00001, 0, 0))).y;
-  float yPos = worleyAdded((p + vec4(0, .00001, 0, 0))).y;
+  float yNeg = worleyAdded((p + vec4(0, -.00001, 0, 0)));
+  float yPos = worleyAdded((p + vec4(0, .00001, 0, 0)));
   float yDiff = (yPos - yNeg);
 
-  float zNeg = worleyAdded((p + vec4(0, 0, -.00001, 0))).z;
-  float zPos = worleyAdded((p + vec4(0, 0, .00001, 0))).z;
+  float zNeg = worleyAdded((p + vec4(0, 0, -.00001, 0)));
+  float zPos = worleyAdded((p + vec4(0, 0, .00001, 0)));
   float zDiff = (zPos - zNeg);
   
   return (vec4(vec3(xDiff, yDiff, zDiff), 0));
+}
+
+float GetBias(float time, float bias)
+{
+  return (time / ((((1.0/bias) - 2.0)*(1.0 - time))+1.0));
+}
+
+float GetGain(float time, float gain)
+{
+  if(time < 0.5)
+    return GetBias(time * 2.0,gain)/2.0;
+  else
+    return GetBias(time * 2.0 - 1.0,1.0 - gain)/2.0 + 0.5;
+}
+
+vec4 getTerrain() {
+  // biomes = water, terraces, mountains, lakes? snowcaps?
+  // toolbox = smooth step (fbm and perlin), sin wave (terraces), jitter scattering (worley)
+  // gui = modify boundaries of terrains, modify fbm octaves or freq, modify which axis it rotates on
+  float terrainMap = worley2(vec3(fbm(vs_Pos, 6., 1.7)));
+  vec4 noisePos = vs_Pos;
+  if (terrainMap < .28) {
+    // water (use worley to animate?) and use blinn phong?
+    fs_Nor = vs_Nor;
+    terrain_Type = 0.;
+  } else if (terrainMap < .44) {
+    // terraces
+    noisePos = vs_Pos + vs_Nor * perlinTerrace(vs_Pos); 
+    vec4 norLocal = normalize(perlinTerraceNormal(vs_Pos));
+    float dot = dot(normalize(norLocal), vec4(0, 0, 1, 0));
+    fs_Nor = transformToWorld(norLocal);
+    if (dot > .98) {
+      terrain_Type = 2.;
+    } else {
+      terrain_Type = 3.;
+    }
+  } else {
+    // mountains
+    float perlin = perlinMountains(vs_Pos);
+    noisePos = vs_Pos + vs_Nor * perlin; 
+    fs_Nor = transformToWorld(normalize(perlinMoutainNormal(vs_Pos)));
+    terrain_Type = 1.;
+  }
+  return noisePos;
 }
 
 void main()
@@ -288,52 +372,17 @@ void main()
     mat3 invTranspose = mat3(u_ModelInvTr);
     fs_Nor = vec4(invTranspose * vec3(vs_Nor), 0);  
     
-    float terrainMap = worley2(vec3(fbm(vs_Pos, 1., 1.2))) * 2. - .5;
-    vec4 noisePos = vs_Pos;
-    if (terrainMap < .02 || terrainMap > .97) {
-      // interpolate between 1 and 4
-      // terraces
-      noisePos = vs_Pos + vs_Nor * perlinTerrace(vs_Pos); 
-    } else if (terrainMap < .27) {
-      // terrain 1
-      // terraces
-      noisePos = vs_Pos + vs_Nor * perlinTerrace(vs_Pos); 
-    } else if (terrainMap < .32) {
-      // interpolate between 1 and 2
-      // big mountains2
-      noisePos = vs_Pos + vs_Nor * fbm(vs_Pos, 6., 2.) / 5.; 
-    } else if (terrainMap < .52) {
-      // terrain 2
-      // big mountains2
-      noisePos = vs_Pos + vs_Nor * fbm(vs_Pos, 6., 2.) / 5.; 
-    } else if (terrainMap < .55) {
-      // interpolate between 2 and 3
-      // big mountains
-      noisePos = vs_Pos + vs_Nor * (perlinMountains(vs_Pos * 2.) + fbm(vs_Pos * 2., 6., 2.)) / 3.; 
-    } else if (terrainMap < .7) {
-      // terrain 3
-      // big mountains
-      noisePos = vs_Pos + vs_Nor * (perlinMountains(vs_Pos * 2.) + fbm(vs_Pos * 2., 6., 2.)) / 3.; 
-    } else if (terrainMap < .75) {
-      // interpolate between 3 and 4
-      // cracked floor
-      vec4 worl = worleyAdded(vs_Pos);  
-      noisePos = vs_Pos + vs_Nor * worl;
-    } else {
-      // terain 4
-      // cracked floor
-      vec4 worl = worleyAdded(vs_Pos);  
-      noisePos = vs_Pos + vs_Nor * worl;
-    }
+    vec4 noisePos = getTerrain();
+    
     // // cracked floor
-    // vec4 worl = worleyAdded(vs_Pos);  
+    // float worl = worleyAdded(vs_Pos);  
     // vec4 worleyNoise = vs_Pos + vs_Nor * worl;
 
     // // terraces
-    // vec4 perlinTerrace = vs_Pos + vs_Nor * perlinTerrace(vs_Pos);   
+    vec4 perlinTerrace = vs_Pos + vs_Nor * perlinTerrace(vs_Pos);   
     
     // // big mountains
-    // vec4 perlinMountains = vs_Pos + vs_Nor * (perlinMountains(vs_Pos * 2.) + fbm(vs_Pos * 2., 6.)) / 2.; 
+    // vec4 perlinMountains = vs_Pos + vs_Nor * (perlinMountains(vs_Pos)); 
     // // big mountains2
     // vec4 fbmNoise = vs_Pos + vs_Nor * fbm(vs_Pos, 6.);  
   
@@ -341,39 +390,9 @@ void main()
     // vec4 hills = vs_Pos + vs_Nor * mix(fbm2(vs_Pos), worley(vec3(worley(vec3(vs_Pos)))) / 4., .9);
 
     vec4 modelposition = u_Model * noisePos; 
-    //vec4 modelposition = u_Model * perlinTerrace; 
-    //vec4 modelposition = u_Model * perlinMountains;   
-    //vec4 modelposition = u_Model * (fbmNoise); 
     fs_Pos = modelposition;
-
-    //fs_Nor = normalize(worleyNormal(vs_Pos));
-    //fs_Nor = normalize(perlinNormal(vs_Pos));
-    //fs_Nor = normalize(fbmNormal(vs_Pos, 6.));
-    //fs_Nor = vec4(invTranspose * vec3(fs_Nor), 0); 
-    vec3 normal = normalize(normalize(vec3(vs_Nor)));
-    vec3 tangent = normalize(cross(vec3(0.0, 1.0, 0.0), normal));
-    vec3 bitangent = normalize(cross(normal, tangent));
-
-    float xNeg = worleyAdded((vs_Pos + vec4(tangent, 0) * vec4(-.00001, 0, 0, 0))).x;
-    float xPos = worleyAdded((vs_Pos + vec4(tangent, 0) * vec4(.00001, 0, 0, 0))).x;
-    float xDiff = (xPos - xNeg);
     
-    float yNeg = worleyAdded((vs_Pos + vec4(bitangent, 0) * vec4(0, -.00001, 0, 0))).y;
-    float yPos = worleyAdded((vs_Pos + vec4(bitangent, 0) * vec4(0, .00001, 0, 0))).y;
-    float yDiff = (yPos - yNeg);
-
-    float zNeg = worleyAdded((vs_Pos + vs_Nor * vec4(0, 0, -.00001, 0))).z;
-    float zPos = worleyAdded((vs_Pos + vs_Nor * vec4(0, 0, .00001, 0))).z;
-    float zDiff = (zPos - zNeg);
-    
-    //fs_Nor = (vec4(vec3(xDiff, yDiff, zDiff), 0));
-
-    mat4 transform;
-    transform[0] = vec4(tangent, 0.0);
-    transform[1] = vec4(bitangent, 0.0);
-    transform[2] = vec4(normal, 0.0);
-    transform[3] = vec4(0.0, 0.0, 0.0, 1.0);
-    //fs_Nor = vec4(normalize(vec3(transform * vec4(normal, 0.0))), 0.0); 
+    fs_Nor = vec4(invTranspose * vec3(fs_Nor), 0);  
 
     fs_LightVec = lightPos - modelposition;  // Compute the direction in which the light source lies
     gl_Position = u_ViewProj * modelposition;// gl_Position is a built-in variable of OpenGL which is

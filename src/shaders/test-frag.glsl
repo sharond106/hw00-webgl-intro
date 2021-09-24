@@ -46,7 +46,6 @@ float perlin(vec3 p) {
 }
 
 float worley(vec3 p) {
-  p *= 1.;
   vec3 pInt = floor(p);
   vec3 pFract = fract(p);
   float minDist = 1.0;
@@ -117,9 +116,9 @@ float interpNoise3D(float x, float y, float z) {
 float fbm(float x, float y, float z) {
   float total = 0.;
   float persistence = 0.5f;
-  float octaves = 1.;
+  float octaves = 16.;
   for(float i = 1.; i <= octaves; i++) {
-    float freq = pow(1.2, i);
+    float freq = pow(2., i);
     float amp = pow(persistence, i);
     total += interpNoise3D(x * freq, y * freq, z * freq) * amp;
   }
@@ -128,30 +127,53 @@ float fbm(float x, float y, float z) {
 
 void main()
 {
-  vec4 diffuseColor = u_Color;
+  // vec4 diffuseColor = u_Color;
 
-  // Calculate the diffuse term for Lambert shading
-  float diffuseTerm = dot(normalize(fs_Nor), normalize(fs_LightVec));
-  // Avoid negative lighting values
-  diffuseTerm = clamp(diffuseTerm, 0.f, 1.f);
+  // // Calculate the diffuse term for Lambert shading
+  // float diffuseTerm = dot(normalize(fs_Nor), normalize(fs_LightVec));
+  // // Avoid negative lighting values
+  // diffuseTerm = clamp(diffuseTerm, 0.f, 1.f);
   
-  float ambientTerm = 0.4;
+  // float ambientTerm = 0.4;
 
-  float lightIntensity = diffuseTerm + ambientTerm;   //Add a small float value to the color multiplier
-                                                      //to simulate ambient lighting. This ensures that faces that are not
-                                                      //lit by our point light are not completely black.
-  float perlinNoise = perlin(vec3(fs_Pos));
-  vec3 a = vec3(u_Color);
-	vec3 b = vec3(0.688, 0.558, 0.500);
-	vec3 c = vec3(255.0 / 255.0, 244.0 / 255.0, 224.0 / 255.0);
-	vec3 d = vec3(0.588, -0.342, 0.048);
-  vec3 perlinColor = a + b * cos(6.28 * worley(vec3(fs_Pos)) * perlinNoise * 4. * c + d);
+  // float lightIntensity = diffuseTerm + ambientTerm;   //Add a small float value to the color multiplier
+  //                                                     //to simulate ambient lighting. This ensures that faces that are not
+  //                                                     //lit by our point light are not completely black.
+  // float perlinNoise = perlin(vec3(fs_Pos));
+  // vec3 a = vec3(u_Color);
+	// vec3 b = vec3(0.688, 0.558, 0.500);
+	// vec3 c = vec3(255.0 / 255.0, 244.0 / 255.0, 224.0 / 255.0);
+	// vec3 d = vec3(0.588, -0.342, 0.048);
+  // vec3 perlinColor = a + b * cos(6.28 * worley(vec3(fs_Pos)) * perlinNoise * 4. * c + d);
 
   // Compute final shaded color
-  float f = fbm(fs_Pos.x, fs_Pos.y, fs_Pos.z);
+  float f = fbm(fs_Pos.x*1.5, fs_Pos.y*1.5, fs_Pos.z*1.5);
   vec4 pos = fs_Pos;
   pos = fs_Pos + f;  // THIS IS COOL!!!!!!!!!!!!
-  //out_Col = vec4(vec3(fbm(pos.x, pos.y, pos.z)), diffuseColor.a); // swirly fbm
-  out_Col = vec4(vec3(worley(vec3(f))) * 2. - .5 , diffuseColor.a); //worley and fbm (lowered octave from 4 to 2 for bigger chunks)
-  //out_Col = vec4(vec3(perlin(vec3(pos))) * lightIntensity, diffuseColor.a);
+  // f = fbm(pos.x, pos.y + .001*float(u_Time), pos.z);
+
+  vec3 a = vec3(0.38, .36, .3);
+  vec3 b = vec3(0.150);
+  vec3 c = vec3(1.000);
+  vec3 d = vec3(0);
+  vec3 color = a + b * cos(6.28 * (f * c + d));
+
+  out_Col = vec4(color, 1.); // swirly fbm
+  
+  // float terrainMap = worley(vec3(f));
+  // vec3 color;
+  // if (terrainMap < .28) {
+  //   color = vec3(0., 0., 1);
+  // } else if (terrainMap < .44) {
+  //   color = vec3(1., 1., 0.);
+  // } else {
+  //   color = vec3(.5);
+  // } 
+
+  // vec3 a = vec3(0.9);
+  // vec3 b = vec3(0.250);
+  // vec3 c = vec3(1.000);
+  // vec3 d = vec3(0);
+  // vec3 color = a + b * cos(6.28 * (worley(vec3(f)) * c + d));
+  // out_Col = vec4(color, 1); //worley and fbm (lowered octave from 4 to 2 for bigger chunks)
 }
