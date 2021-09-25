@@ -19,6 +19,10 @@ uniform mat4 u_ViewProj;    // The matrix that defines the camera's transformati
                             // We've written a static matrix for you to use for HW2,
                             // but in HW3 you'll have to generate one yourself
 uniform int u_Time;
+uniform vec4 u_CameraPos;
+uniform float u_Sea;
+uniform float u_Mountains;
+uniform float u_Fragments;
 
 in vec4 vs_Pos;             // The array of vertex positions passed to the shader
 
@@ -32,9 +36,7 @@ out vec4 fs_Nor;            // The array of normals that has been transformed by
 out vec4 fs_LightVec;       // The direction in which our virtual light lies, relative to each vertex. This is implicitly passed to the fragment shader.
 out vec4 fs_Col;            // The color of each vertex. This is implicitly passed to the fragment shader.
 out float terrain_Type;
-
-const vec4 lightPos = vec4(4, 7, 10, 1); //The position of our virtual light, which is used to compute the shading of
-                                        //the geometry in the fragment shader.
+out vec4 fs_LightPos;
 
 float random1( vec3 p ) {
   return fract(sin((dot(p, vec3(127.1,
@@ -92,16 +94,16 @@ float perlinTerrace(vec4 p) {
   //terrace = rounded;
   //terrace *= random1(vec3(terrace));
   //noise = mix(noise, terrace, random1(vec3(terrace)));
-  return terrace + .01;
+  return terrace + .005;
 }
 
-float perlinMountains(vec4 p) {
+float perlinMountains(vec4 p, float factor) {
   p *= 2.;
   float noise = perlin(vec3(p)) + .5 * perlin(2.f * vec3(p)) + 0.25 * perlin(4.f * vec3(p));
   //noise = noise / (1.f + .5 + .25); // this and next line for valleys
   //noise = pow(noise, .2);
-  noise *= 1.5;
-  return noise + .05;
+  noise *= factor;
+  return noise + .02;
 }
 
 vec4 cartesian(float r, float theta, float phi) {
@@ -150,17 +152,17 @@ vec4 perlinTerraceNormal(vec4 p) {
   return vec4(vec3(xDiff, yDiff, p.z), 0);
 }
 
-vec4 perlinMoutainNormal(vec4 p) {
+vec4 perlinMoutainNormal(vec4 p, float factor) {
   vec3 polars = polar(p);
   float offset = .01;
   vec4 xNeg = cartesian(polars.x, polars.y - offset, polars.z);
   vec4 xPos = cartesian(polars.x, polars.y + offset, polars.z);
   vec4 yNeg = cartesian(polars.x, polars.y, polars.z - offset);
   vec4 yPos = cartesian(polars.x, polars.y, polars.z + offset);
-  float xNegNoise = perlinMountains(xNeg);
-  float xPosNoise = perlinMountains(xPos);
-  float yNegNoise = perlinMountains(yNeg);
-  float yPosNoise = perlinMountains(yPos);
+  float xNegNoise = perlinMountains(xNeg, factor);
+  float xPosNoise = perlinMountains(xPos, factor);
+  float yNegNoise = perlinMountains(yNeg, factor);
+  float yPosNoise = perlinMountains(yPos, factor);
 
   float xDiff = (xPosNoise - xNegNoise) * 10.;
   float yDiff = (yPosNoise - yNegNoise) * 10.;
@@ -322,6 +324,38 @@ vec4 worleyNormal(vec4 p) {
   return (vec4(vec3(xDiff, yDiff, zDiff), 0));
 }
 
+vec4 getTerrain() {
+  // biomes = water, terraces, mountains, sand
+  // toolbox = smooth step (fbm and perlin), sin wave (terraces), jitter scattering (worley), gain to animate light
+  // gui = modify boundaries of terrains, modify fbm octaves or freq, 
+  float terrainMap = worley2(vec3(fbm(vs_Pos, 6., 1.2 + u_Fragments * .1)));
+  vec4 noisePos = vs_Pos;
+  if (terrainMap < .28 + (u_Sea * .06)) {
+    // water (use worley to animate?) and use blinn phong?
+    fs_Nor = vs_Nor;
+    terrain_Type = 0.;
+  } else if (terrainMap < .3) {
+    fs_Nor = vs_Nor;
+    terrain_Type = 3.;
+  } else if (terrainMap < .94 - (u_Mountains * .05)) {
+    // terraces
+    noisePos = vs_Pos + vs_Nor * perlinTerrace(vs_Pos); 
+    fs_Nor = transformToWorld(normalize(perlinTerraceNormal(vs_Pos)));
+    terrain_Type = 2.;
+  } else if (terrainMap < .98 - (u_Mountains * .05)) {
+    // smaller mountains 
+    noisePos = vs_Pos + vs_Nor * perlinMountains(vs_Pos, 1.); 
+    fs_Nor = transformToWorld(normalize(perlinMoutainNormal(vs_Pos, .4)));
+    terrain_Type = 1.;
+  } else {
+    // mountains
+    noisePos = vs_Pos + vs_Nor * perlinMountains(vs_Pos, 1.7); 
+    fs_Nor = transformToWorld(normalize(perlinMoutainNormal(vs_Pos, 1.7)));
+    terrain_Type = 1.;
+  }
+  return noisePos;
+}
+
 float GetBias(float time, float bias)
 {
   return (time / ((((1.0/bias) - 2.0)*(1.0 - time))+1.0));
@@ -333,37 +367,6 @@ float GetGain(float time, float gain)
     return GetBias(time * 2.0,gain)/2.0;
   else
     return GetBias(time * 2.0 - 1.0,1.0 - gain)/2.0 + 0.5;
-}
-
-vec4 getTerrain() {
-  // biomes = water, terraces, mountains, lakes? snowcaps?
-  // toolbox = smooth step (fbm and perlin), sin wave (terraces), jitter scattering (worley)
-  // gui = modify boundaries of terrains, modify fbm octaves or freq, modify which axis it rotates on
-  float terrainMap = worley2(vec3(fbm(vs_Pos, 6., 1.7)));
-  vec4 noisePos = vs_Pos;
-  if (terrainMap < .28) {
-    // water (use worley to animate?) and use blinn phong?
-    fs_Nor = vs_Nor;
-    terrain_Type = 0.;
-  } else if (terrainMap < .44) {
-    // terraces
-    noisePos = vs_Pos + vs_Nor * perlinTerrace(vs_Pos); 
-    vec4 norLocal = normalize(perlinTerraceNormal(vs_Pos));
-    float dot = dot(normalize(norLocal), vec4(0, 0, 1, 0));
-    fs_Nor = transformToWorld(norLocal);
-    if (dot > .98) {
-      terrain_Type = 2.;
-    } else {
-      terrain_Type = 3.;
-    }
-  } else {
-    // mountains
-    float perlin = perlinMountains(vs_Pos);
-    noisePos = vs_Pos + vs_Nor * perlin; 
-    fs_Nor = transformToWorld(normalize(perlinMoutainNormal(vs_Pos)));
-    terrain_Type = 1.;
-  }
-  return noisePos;
 }
 
 void main()
@@ -393,8 +396,10 @@ void main()
     fs_Pos = modelposition;
     
     fs_Nor = vec4(invTranspose * vec3(fs_Nor), 0);  
-
-    fs_LightVec = lightPos - modelposition;  // Compute the direction in which the light source lies
+    
+    vec4 light = mix(vec4(10., 4., 10., 1.), vec4(-10., 4., 10., 1.), GetGain((sin(float(u_Time)*.04) + 1.)/2., .75));
+    fs_LightPos = light;
+    fs_LightVec = light - modelposition;  // Compute the direction in which the light source lies
     gl_Position = u_ViewProj * modelposition;// gl_Position is a built-in variable of OpenGL which is
                                              // used to render the final positions of the geometry's vertices
 }

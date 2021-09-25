@@ -13,6 +13,7 @@ precision highp float;
 
 uniform highp int u_Time;
 uniform vec4 u_Color; // The color with which to render this instance of geometry.
+uniform vec4 u_CameraPos;
 
 // These are the interpolated values out of the rasterizer, so you can't know
 // their specific values without knowing the vertices that contributed to them
@@ -22,6 +23,7 @@ in vec4 fs_LightVec;
 in vec4 fs_Col;
 in float noise;
 in float terrain_Type;
+in vec4 fs_LightPos;
 
 out vec4 out_Col; // This is the final output color that you will see on your
                   // screen for the pixel that is currently being processed.
@@ -107,6 +109,10 @@ float fbm(float x, float y, float z, float octaves) {
 
 void main()
 {
+    vec4 view = normalize(u_CameraPos - fs_Pos);
+    vec4 H = normalize(view + normalize(fs_LightVec));
+    vec3 specularIntensity = pow(max(dot(H, normalize(fs_Nor)), 0.), 50.) * vec3(230./255., 233./255., 190./255.);
+
     // Material base color (before shading)
     vec4 diffuseColor = u_Color;
 
@@ -123,39 +129,44 @@ void main()
     vec3 color;
     // Compute final shaded color
     if (terrain_Type < 0.5) { // ocean color
-        float f = fbm(fs_Pos.x, fs_Pos.y, fs_Pos.z, 6.);
-        vec4 pos = fs_Pos;
-        pos = fs_Pos + f; 
-        f = fbm(pos.x + .008*float(u_Time), pos.y, pos.z, 6.);
-        vec3 a = vec3(0.040, 0.50, 0.60);
-        vec3 b = vec3(0.00 ,0.4, 0.3);
-        vec3 c = vec3(0.00 , .8, .8);
-        vec3 d = vec3(0.050 ,0.1, 0.08);
-        color = a + b * cos(6.28 * (f * c + d));
+      float f = fbm(fs_Pos.x, fs_Pos.y, fs_Pos.z, 6.);
+      vec4 pos = fs_Pos;
+      pos = fs_Pos + f; 
+      f = fbm(pos.x + .008*float(u_Time), pos.y, pos.z, 6.);
+      vec3 a = vec3(0.040, 0.50, 0.60);
+      vec3 b = vec3(0.00 ,0.4, 0.3);
+      vec3 c = vec3(0.00 , .8, .8);
+      vec3 d = vec3(0.050 ,0.1, 0.08);
+      color = a + b * cos(6.28 * (f * c + d));
+      specularIntensity = vec3(0.);
     } else if (terrain_Type < 1.5) {  // mountains
-        float f = fbm(fs_Pos.x * 2., fs_Pos.y * 2., fs_Pos.z * 2., 16.);
-        vec3 a = vec3(0.68, .66, .6);
-        vec3 b = vec3(0.250);
-        vec3 c = vec3(1.000);
-        vec3 d = vec3(0);
-        color = a + b * cos(6.28 * (worley(vec3(f)) * c + d));  
-    } else  { // terrace tops
-        float f = fbm(fs_Pos.x*1.5, fs_Pos.y*1.5, fs_Pos.z*1.5, 16.);
-        vec3 a = vec3(0.350, 0.658, 0.000);
-        vec3 b = vec3(.25);
-        vec3 c = vec3(.9);
-        vec3 d = vec3(0);
-        color = a + b * cos(6.28 * (f * c + d));
-    } 
-    // else {  // terrace sides 
-    //     float f = fbm(fs_Pos.x*1.5, fs_Pos.y*1.5, fs_Pos.z*1.5, 16.);
-    //     vec3 a = vec3(0.38, .36, .3);
-    //     vec3 b = vec3(0.150);
-    //     vec3 c = vec3(1.000);
-    //     vec3 d = vec3(0);
-    //     color = a + b * cos(6.28 * (f * c + d));
-    // }
-    out_Col = vec4(color * lightIntensity, 1.); 
+      float f = fbm(fs_Pos.x * 2., fs_Pos.y * 2., fs_Pos.z * 2., 16.);
+      vec3 a = vec3(0.68, .66, .6);
+      vec3 b = vec3(0.250);
+      vec3 c = vec3(1.000);
+      vec3 d = vec3(0);
+      color = a + b * cos(6.28 * (worley(vec3(f)) * c + d));  
+    } else if (terrain_Type < 2.5) { // terrace
+      float f = fbm(fs_Pos.x*1.5, fs_Pos.y*1.5, fs_Pos.z*1.5, 16.);
+      vec3 a = vec3(0.40, 0.7, 0.000);
+      vec3 b = vec3(.25);
+      vec3 c = vec3(.9);
+      vec3 d = vec3(0);
+      color = a + b * cos(6.28 * (f * c + d));
+      specularIntensity = vec3(0.);
+    } else if (terrain_Type <= 3.5) { // sand
+      float f = fbm(fs_Pos.x*2.5, fs_Pos.y*2.5, fs_Pos.z*2.5, 8.);
+      vec3 a = vec3(.9, .8, .7);
+      vec3 b = vec3(0.20);
+      vec3 c = vec3(1.000);
+      vec3 d = vec3(0);
+      color = a + b * cos(6.28 * (f * c + d));
+    } else { 
+      color = vec3(0);
+    }
+     
+    out_Col = vec4(color  * lightIntensity + specularIntensity, 1.); 
+    // out_Col = vec4(color, 1.); 
 
     vec3 height = vec3(noise);
     height = (height + vec3(1.)) / 2.;

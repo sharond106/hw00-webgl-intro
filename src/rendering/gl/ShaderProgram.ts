@@ -30,6 +30,10 @@ class ShaderProgram {
   unifViewProj: WebGLUniformLocation;
   unifColor: WebGLUniformLocation;
   unifTime: WebGLUniformLocation;
+  unifCamPos: WebGLUniformLocation;
+  unifSeaLevel: WebGLUniformLocation;
+  unifMountains: WebGLUniformLocation;
+  unifFragments: WebGLUniformLocation;
 
   constructor(shaders: Array<Shader>) {
     this.prog = gl.createProgram();
@@ -50,6 +54,10 @@ class ShaderProgram {
     this.unifViewProj   = gl.getUniformLocation(this.prog, "u_ViewProj");
     this.unifColor      = gl.getUniformLocation(this.prog, "u_Color");
     this.unifTime = gl.getUniformLocation(this.prog, "u_Time");
+    this.unifCamPos = gl.getUniformLocation(this.prog, "u_CameraPos");
+    this.unifSeaLevel = gl.getUniformLocation(this.prog, "u_Sea");
+    this.unifMountains = gl.getUniformLocation(this.prog, "u_Mountains");
+    this.unifFragments = gl.getUniformLocation(this.prog, "u_Fragments");
   }
 
   use() {
@@ -91,6 +99,34 @@ class ShaderProgram {
     this.use();
     if (this.unifTime !== -1) {
       gl.uniform1i(this.unifTime, time);
+    }
+  }
+
+  setCamPos(pos: vec4) {
+    this.use();
+    if (this.unifCamPos !== -1) {
+      gl.uniform4fv(this.unifCamPos, pos);
+    }
+  }
+
+  setSea(sea: number) {
+    this.use();
+    if(this.unifSeaLevel != -1) {
+      gl.uniform1f(this.unifSeaLevel, sea);
+    }
+  }
+
+  setMountains(mtn: number) {
+    this.use();
+    if(this.unifMountains != -1) {
+      gl.uniform1f(this.unifMountains, mtn);
+    }
+  }
+
+  setFragments(frag: number) {
+    this.use();
+    if(this.unifFragments != -1) {
+      gl.uniform1f(this.unifFragments, frag);
     }
   }
 

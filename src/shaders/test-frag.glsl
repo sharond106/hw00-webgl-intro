@@ -116,9 +116,9 @@ float interpNoise3D(float x, float y, float z) {
 float fbm(float x, float y, float z) {
   float total = 0.;
   float persistence = 0.5f;
-  float octaves = 16.;
+  float octaves = 6.;
   for(float i = 1.; i <= octaves; i++) {
-    float freq = pow(2., i);
+    float freq = pow(1.9, i);
     float amp = pow(persistence, i);
     total += interpNoise3D(x * freq, y * freq, z * freq) * amp;
   }
@@ -147,33 +147,36 @@ void main()
   // vec3 perlinColor = a + b * cos(6.28 * worley(vec3(fs_Pos)) * perlinNoise * 4. * c + d);
 
   // Compute final shaded color
-  float f = fbm(fs_Pos.x*1.5, fs_Pos.y*1.5, fs_Pos.z*1.5);
+  float f = fbm(fs_Pos.x, fs_Pos.y, fs_Pos.z);
   vec4 pos = fs_Pos;
   pos = fs_Pos + f;  // THIS IS COOL!!!!!!!!!!!!
   // f = fbm(pos.x, pos.y + .001*float(u_Time), pos.z);
 
-  vec3 a = vec3(0.38, .36, .3);
-  vec3 b = vec3(0.150);
+  vec3 a = vec3(1, .9, .8);
+  vec3 b = vec3(0.20);
   vec3 c = vec3(1.000);
   vec3 d = vec3(0);
   vec3 color = a + b * cos(6.28 * (f * c + d));
 
   out_Col = vec4(color, 1.); // swirly fbm
   
-  // float terrainMap = worley(vec3(f));
-  // vec3 color;
-  // if (terrainMap < .28) {
-  //   color = vec3(0., 0., 1);
-  // } else if (terrainMap < .44) {
-  //   color = vec3(1., 1., 0.);
-  // } else {
-  //   color = vec3(.5);
-  // } 
+  float terrainMap = worley(vec3(f));
+  if (terrainMap < .28) {
+    color = vec3(.2, .2, .8);
+  } else if (terrainMap < .3) {
+    color = vec3(.5, .5, .2);
+  } else if (terrainMap < .44) {
+    color = vec3(.2, .8, .2);
+  } else if (terrainMap < .48) {
+    color = vec3(.5, .5, .5);
+  } else {
+    color = vec3(0);
+  }
 
   // vec3 a = vec3(0.9);
   // vec3 b = vec3(0.250);
   // vec3 c = vec3(1.000);
   // vec3 d = vec3(0);
   // vec3 color = a + b * cos(6.28 * (worley(vec3(f)) * c + d));
-  // out_Col = vec4(color, 1); //worley and fbm (lowered octave from 4 to 2 for bigger chunks)
+  out_Col = vec4(color, 1); //worley and fbm (lowered octave from 4 to 2 for bigger chunks)
 }

@@ -20,6 +20,7 @@ let icosphere: Icosphere;
 let square: Square;
 let cube: Cube;
 let prevTesselations: number = 8;
+let prevColor = [171., 224., 237.];
 let time: number = 0;
 
 function loadScene() {
@@ -42,12 +43,24 @@ function main() {
 
   // Add controls to the gui
   const gui = new DAT.GUI();
-  gui.add(controls, 'tesselations', 0, 8).step(1);
-  gui.add(controls, 'Load Scene');
+  gui.add(controls, 'tesselations', 0, 8).step(1).name('Tesselations');
+  // gui.add(controls, 'Load Scene');
   var color = {
-    color: [255, 128, 128], // RGB array
+    color: [171., 224., 237.], // RGB array
   };
-  gui.addColor(color, 'color');
+  gui.addColor(color, 'color').name('Background Color');
+  var sea = {
+    level : 0
+  };
+  gui.add(sea, 'level', 0, 5).name('Sea Level');
+  var terrain = {
+    mountains : 10
+  };
+  gui.add(terrain, 'mountains', 0, 10).name('Mountains');
+  var fragments = {
+    level : 5
+  };
+  gui.add(fragments, 'level', 0, 8).name('Fragmentation');
 
   // get canvas and webgl context
   const canvas = <HTMLCanvasElement> document.getElementById('canvas');
@@ -91,6 +104,11 @@ function main() {
     camera.update();
     stats.begin();
     gl.viewport(0, 0, window.innerWidth, window.innerHeight);
+    if(color.color[0] != prevColor[0] || color.color[1] != prevColor[1] || color.color[2] != prevColor[2])
+    {
+      prevColor = color.color;
+      renderer.setClearColor(color.color[0] / 255.0, color.color[1] / 255.0, color.color[2] / 255.0, 1);
+    }
     renderer.clear();
     if(controls.tesselations != prevTesselations)
     {
@@ -102,7 +120,7 @@ function main() {
       icosphere,
       //square,
       //cube
-    ], color.color, time);
+    ], color.color, time, sea.level, terrain.mountains, fragments.level);
     stats.end();
 
     // Tell the browser to call `tick` again whenever it renders a new frame
