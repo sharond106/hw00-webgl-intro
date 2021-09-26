@@ -80,7 +80,7 @@ float perlin(vec3 p) {
     }
   }
   // float sum = surfletSum / 4.;
-  // return (sum + 1. )/2.;
+  // return (sum + 1. )/2.; // kinda creates cool earth like land masses
   return surfletSum / 4.;
 }
 
@@ -88,12 +88,7 @@ float perlinTerrace(vec4 p) {
   p *= 1.5;
   float noise = perlin(vec3(p)) + .5 * perlin(2.f * vec3(p)) + 0.25 * perlin(4.f * vec3(p));
   float rounded = (round(noise * 30.f) / 30.f);
-  float terrace = (noise + sin(200.*noise + 3.)*.006) *.9;
-  
-  // float rounded = perlin(p.xyz);
-  //terrace = rounded;
-  //terrace *= random1(vec3(terrace));
-  //noise = mix(noise, terrace, random1(vec3(terrace)));
+  float terrace = (noise + sin(290.*noise + 3.)*.004) *.8;
   return terrace + .005;
 }
 
@@ -250,36 +245,6 @@ vec4 fbmNormal(vec4 p, float oct, float freq) {
 }
 
 float worley(vec3 p) {
-  p *= 1.5;
-  vec3 pInt = floor(p);
-  vec3 pFract = fract(p);
-  float minDist = 1.0;
-  float secondDist = 1.0;
-  for (int x = -1; x <= 1; x++) {
-    for (int y = -1; y <= 1; y++) {
-      for (int z = -1; z <= 1; z++) {
-        // if (random1(vec3(x, y, z)) < .6) {
-        //   continue;
-        // }
-        vec3 neighbor = vec3(float(x), float(y), float(z));
-        vec3 voronoi = random3(pInt + neighbor);
-        //voronoi = 0.5 + 0.5 * sin(0.01 * float(u_Time) + 13.2831 * voronoi);
-        vec3 diff = neighbor + voronoi - pFract;
-        float dist = length(diff);
-        if (dist < minDist) {
-          secondDist = minDist;
-          minDist = dist;
-        } else if (dist < secondDist) {
-            secondDist = dist;
-        }
-      }
-    }
-  }
-  //return 1.0 - minDist;
-  return (-1. * minDist + 1. * secondDist);
-}
-
-float worley2(vec3 p) {
   vec3 pInt = floor(p);
   vec3 pFract = fract(p);
   float minDist = 1.0;
@@ -297,38 +262,11 @@ float worley2(vec3 p) {
   return 1.0 - minDist;
 }
 
-float worleyAdded(vec4 pos) {
-  float offset = ((worley(vec3(pos * 6.)))) / .5; // Can divide by different factors or not at all for plateus!!!!!!!!!!!!!!
-  offset = clamp(offset, .1, .15); 
-
-  // if (offset.x > 0. && offset.y > 0. && offset.z > 0.) {
-  //   offset = vec3(mix(vec3(fbm2(pos)), offset, .85));
-  // }
-  offset/=5.;
-  return offset;
-}
-
-vec4 worleyNormal(vec4 p) {
-  float xNeg = worleyAdded((p + vec4(-.00001, 0, 0, 0)));
-  float xPos = worleyAdded((p + vec4(.00001, 0, 0, 0)));
-  float xDiff = (xPos - xNeg);
-  
-  float yNeg = worleyAdded((p + vec4(0, -.00001, 0, 0)));
-  float yPos = worleyAdded((p + vec4(0, .00001, 0, 0)));
-  float yDiff = (yPos - yNeg);
-
-  float zNeg = worleyAdded((p + vec4(0, 0, -.00001, 0)));
-  float zPos = worleyAdded((p + vec4(0, 0, .00001, 0)));
-  float zDiff = (zPos - zNeg);
-  
-  return (vec4(vec3(xDiff, yDiff, zDiff), 0));
-}
-
 vec4 getTerrain() {
   // biomes = water, terraces, mountains, sand
   // toolbox = smooth step (fbm and perlin), sin wave (terraces), jitter scattering (worley), gain to animate light
   // gui = modify boundaries of terrains, modify fbm octaves or freq, 
-  float terrainMap = worley2(vec3(fbm(vs_Pos, 6., 1.2 + u_Fragments * .1)));
+  float terrainMap = worley(vec3(fbm(vs_Pos, 6., 1.2 + u_Fragments * .1)));
   vec4 noisePos = vs_Pos;
   if (terrainMap < .28 + (u_Sea * .06)) {
     // water (use worley to animate?) and use blinn phong?
@@ -376,21 +314,6 @@ void main()
     fs_Nor = vec4(invTranspose * vec3(vs_Nor), 0);  
     
     vec4 noisePos = getTerrain();
-    
-    // // cracked floor
-    // float worl = worleyAdded(vs_Pos);  
-    // vec4 worleyNoise = vs_Pos + vs_Nor * worl;
-
-    // // terraces
-    vec4 perlinTerrace = vs_Pos + vs_Nor * perlinTerrace(vs_Pos);   
-    
-    // // big mountains
-    // vec4 perlinMountains = vs_Pos + vs_Nor * (perlinMountains(vs_Pos)); 
-    // // big mountains2
-    // vec4 fbmNoise = vs_Pos + vs_Nor * fbm(vs_Pos, 6.);  
-  
-    // // hills
-    // vec4 hills = vs_Pos + vs_Nor * mix(fbm2(vs_Pos), worley(vec3(worley(vec3(vs_Pos)))) / 4., .9);
 
     vec4 modelposition = u_Model * noisePos; 
     fs_Pos = modelposition;
