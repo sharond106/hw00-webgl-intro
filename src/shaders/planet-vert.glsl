@@ -23,6 +23,7 @@ uniform vec4 u_CameraPos;
 uniform float u_Sea;
 uniform float u_Mountains;
 uniform float u_Fragments;
+uniform float u_PlanetAndMoon;
 
 in vec4 vs_Pos;             // The array of vertex positions passed to the shader
 
@@ -145,6 +146,13 @@ vec4 perlinTerraceNormal(vec4 p) {
   float yDiff = (yPosNoise - yNegNoise) * 1000.;
   p.z = sqrt(1. - xDiff * xDiff - yDiff * yDiff);
   return vec4(vec3(xDiff, yDiff, p.z), 0);
+  // vec3 normal = vec3(vs_Nor);
+  // vec3 tangent = cross(vec3(0, 1, 0), normal);
+  // vec3 bitangent = cross(normal, tangent);
+  // vec3 p1 = vec3(vs_Pos) + .0001 * tangent + tangent * perlinTerrace(p + vec4(.0001*tangent, 0.));
+  // vec3 p2 = vec3(vs_Pos) + .0001 * bitangent + bitangent * perlinTerrace(p + vec4(.0001*bitangent, 0.));
+  // vec3 p3 = vec3(vs_Pos) + normal * perlinTerrace(p);
+  // return vec4(cross(p3 - p1, p3 - p2), 0);
 }
 
 vec4 perlinMoutainNormal(vec4 p, float factor) {
@@ -320,7 +328,18 @@ void main()
     
     fs_Nor = vec4(invTranspose * vec3(fs_Nor), 0);  
     
-    vec4 light = mix(vec4(10., 4., 10., 1.), vec4(-10., 4., 10., 1.), GetGain((sin(float(u_Time)*.04) + 1.)/2., .75));
+    vec4 light;
+    if (u_PlanetAndMoon > 0.) {
+      float angle = .01 * float(u_Time);
+      vec4 col0 = vec4(cos(angle), 0, -1.*sin(angle), 0);
+      vec4 col1 = vec4(0, 1, 0, 0);
+      vec4 col2 = vec4(sin(angle), 0, cos(angle), 0);
+      vec4 col3 = vec4(0, 0, 0, 1);
+      mat4 rotate = mat4(col0, col1, col2, col3);
+      light = rotate * vec4(-2, 0, 0, 1);
+    } else {
+      light = mix(vec4(10., 4., 10., 1.), vec4(-10., 4., 10., 1.), GetGain((sin(float(u_Time)*.02) + 1.)/2., .75));
+    }
     fs_LightPos = light;
     fs_LightVec = light - modelposition;  // Compute the direction in which the light source lies
     gl_Position = u_ViewProj * modelposition;// gl_Position is a built-in variable of OpenGL which is

@@ -17,6 +17,7 @@ const controls = {
 };
 
 let icosphere: Icosphere;
+let moon: Icosphere;
 let square: Square;
 let cube: Cube;
 let prevTesselations: number = 8;
@@ -26,6 +27,9 @@ let time: number = 0;
 function loadScene() {
   icosphere = new Icosphere(vec3.fromValues(0, 0, 0), 1, controls.tesselations);
   icosphere.create();
+  moon = new Icosphere(vec3.fromValues(0, 0, 0), .25, 8.);
+  // moon = new Icosphere(vec3.fromValues(2, 0, 0), .25, 6.);
+  moon.create();
   square = new Square(vec3.fromValues(0, 0, 0));
   square.create();
   cube = new Cube(vec3.fromValues(0, 0, 0));
@@ -61,6 +65,10 @@ function main() {
     level : 5
   };
   gui.add(fragments, 'level', 0, 8).name('Fragmentation');
+  var showObjs = {
+    display : "Planet and moon"
+  }
+  gui.add(showObjs, 'display').options(['Planet and moon', 'Planet only', 'Moon only']).name('Display');
 
   // get canvas and webgl context
   const canvas = <HTMLCanvasElement> document.getElementById('canvas');
@@ -97,6 +105,10 @@ function main() {
     new Shader(gl.VERTEX_SHADER, require('./shaders/test-vert.glsl')),
     new Shader(gl.FRAGMENT_SHADER, require('./shaders/test-frag.glsl')),
   ]);
+  const moon_lambert = new ShaderProgram([
+    new Shader(gl.VERTEX_SHADER, require('./shaders/moon-vert.glsl')),
+    new Shader(gl.FRAGMENT_SHADER, require('./shaders/moon-frag.glsl')),
+  ]);
 
   // This function will be called every frame
   function tick() {
@@ -116,11 +128,18 @@ function main() {
       icosphere = new Icosphere(vec3.fromValues(0, 0, 0), 1, prevTesselations);
       icosphere.create();
     }
-    renderer.render(camera, planet, [
-      icosphere,
-      //square,
-      //cube
-    ], color.color, time, sea.level, terrain.mountains, fragments.level);
+
+    if (showObjs.display === "Planet and moon") {
+      renderer.render(camera, [planet, moon_lambert], 
+        [icosphere, moon], color.color, time, sea.level, terrain.mountains, fragments.level, true);
+    } else if (showObjs.display === "Planet only") {
+      renderer.render(camera, [planet], 
+        [icosphere], color.color, time, sea.level, terrain.mountains, fragments.level, false);
+    } else {
+      renderer.render(camera, [moon_lambert], 
+        [moon], color.color, time, sea.level, terrain.mountains, fragments.level, false);
+    }
+    
     stats.end();
 
     // Tell the browser to call `tick` again whenever it renders a new frame

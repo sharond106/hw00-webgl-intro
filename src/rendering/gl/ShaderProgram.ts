@@ -34,6 +34,7 @@ class ShaderProgram {
   unifSeaLevel: WebGLUniformLocation;
   unifMountains: WebGLUniformLocation;
   unifFragments: WebGLUniformLocation;
+  unifPlanetAndMoon: WebGLUniformLocation;
 
   constructor(shaders: Array<Shader>) {
     this.prog = gl.createProgram();
@@ -58,6 +59,7 @@ class ShaderProgram {
     this.unifSeaLevel = gl.getUniformLocation(this.prog, "u_Sea");
     this.unifMountains = gl.getUniformLocation(this.prog, "u_Mountains");
     this.unifFragments = gl.getUniformLocation(this.prog, "u_Fragments");
+    this.unifPlanetAndMoon = gl.getUniformLocation(this.prog, "u_PlanetAndMoon");
   }
 
   use() {
@@ -127,6 +129,13 @@ class ShaderProgram {
     this.use();
     if(this.unifFragments != -1) {
       gl.uniform1f(this.unifFragments, frag);
+    }
+  }
+
+  setPlanetAndMoon(x: number) {
+    this.use();
+    if(this.unifPlanetAndMoon != -1) {
+      gl.uniform1f(this.unifPlanetAndMoon, x);
     }
   }
 

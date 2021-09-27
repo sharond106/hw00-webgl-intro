@@ -118,7 +118,7 @@ float fbm(float x, float y, float z) {
   float persistence = 0.5f;
   float octaves = 6.;
   for(float i = 1.; i <= octaves; i++) {
-    float freq = pow(1.9, i);
+    float freq = pow(2., i);
     float amp = pow(persistence, i);
     total += interpNoise3D(x * freq, y * freq, z * freq) * amp;
   }
@@ -160,18 +160,18 @@ void main()
 
   out_Col = vec4(color, 1.); // swirly fbm
   
-  float terrainMap = worley(vec3(f));
-  if (terrainMap < .28) {
-    color = vec3(.2, .2, .8);
-  } else if (terrainMap < .3) {
-    color = vec3(.5, .5, .2);
-  } else if (terrainMap < .44) {
-    color = vec3(.2, .8, .2);
-  } else if (terrainMap < .48) {
-    color = vec3(.5, .5, .5);
-  } else {
-    color = vec3(0);
-  }
+  // loat terrainMap = worley(vec3(f));
+  // if (terrainMap < .28) {
+  //   color = vec3(.2, .2, .8);
+  // } else if (terrainMap < .3) {
+  //   color = vec3(.5, .5, .2);
+  // } else if (terrainMap < .44) {
+  //   color = vec3(.2, .8, .2);
+  // } else if (terrainMap < .48) {
+  //   color = vec3(.5, .5, .5);
+  // } else {
+  //   color = vec3(0);
+  // }f
 
   // vec3 a = vec3(0.9);
   // vec3 b = vec3(0.250);
