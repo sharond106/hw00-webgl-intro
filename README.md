@@ -20,16 +20,22 @@ Live demo: https://sharond106.github.io/hw00-webgl-intro/
 - Sand
     - Colored with a cosine color palette and fbm
     - Blinn phong shading to represent wet sand
+- Moon
+    - Normals displaced with worley noise and a step function to create craters
+    - Rotates around the planet 
+    - Colored with fbm
 - Sun
-    - Moves from left to right and animated with a .75 gain function 
+    - When both planet and moon are displayed, the sun rotates with the moon, and the moon has another light source following it
+    - When only one of the planet/moon is displayed (selected by GUI), the sun moves from left to right, animated with a .75 gain function 
 - GUI
     - Sea level slider changes the threshold of the terrain placement noise value that determines where ocean lies
     - Mountains slider works similarly
     - Fragmentation slider changes the frequency of the fbm used for terrain placement
+    - Drop down menu lets you choose between seeing the planet/moon
 - More about the noise functions
-    - All noise functions are 3D
+    - All noise functions for my vertex displacements and colors are 3D
     - My perlin noise and fbm functions use a quintic smooth step function for interpolation
-    - 
+   
 ## Helpful Resources I Used
 - https://www.redblobgames.com/maps/terrain-from-noise/
 - https://iquilezles.org/www/articles/warp/warp.htm
