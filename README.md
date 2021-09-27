@@ -3,6 +3,12 @@ Sharon Dong (PennKey: sharondo)
 
 Live demo: https://sharond106.github.io/hw00-webgl-intro/
 
+![Demo](https://media.giphy.com/media/sTUCU2lnhDfj42Yg9Z/giphy.gif?cid=790b76118589ab6a6189ca2b12c1848f512325f88af6fa46&rid=giphy.gif&ct=g)
+
+![Orbiting](https://media.giphy.com/media/ZQpx4HRMlUwK5onReY/giphy.gif?cid=790b7611f197b4a50cf632ad91cab51d97bc258eeec0439e&rid=giphy.gif&ct=g)
+
+![Moon](https://media.giphy.com/media/V6r7E6UyiEFOmsn4Tv/giphy.gif?cid=790b7611ecb29652578529ac985e2ba06380ea58a0c33667&rid=giphy.gif&ct=g)
+
 ## Techniques
 - Terrain Placement
     - The base noise function that determines where the terrain and ocean lie uses worley noise warped with fbm: `color = worley(fbm(p))`
